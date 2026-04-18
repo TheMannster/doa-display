@@ -2,9 +2,20 @@ fx_version 'cerulean'
 game 'gta5'
 
 name 'doa-display'
-description 'Display vehicles that players cannot enter or steal'
+description 'Modular display + ambient city vehicles'
 author 'DOA'
-version '1.0.0'
+version '1.1.0'
 
-shared_script 'config.lua'
-client_script 'client.lua'
+shared_scripts {
+    'config.lua',
+    'shared/logger.lua',
+}
+
+client_scripts {
+    'client/modules/display.lua',
+}
+
+server_scripts {
+    'server/modules/citycars.lua',
+    'server/main.lua',
+}
