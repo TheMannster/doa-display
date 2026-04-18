@@ -68,8 +68,9 @@ CreateThread(function()
             return
         end
 
-        local remote = manifest:match("version%s+'([^']+)'")
-                    or manifest:match('version%s+"([^"]+)"')
+        local padded = '\n' .. manifest
+        local remote = padded:match("[\n\r;]version%s+'([^']+)'")
+                    or padded:match('[\n\r;]version%s+"([^"]+)"')
         if not remote then
             TM.Log.warn('version', 'could not find version field in remote fxmanifest.lua')
             return
