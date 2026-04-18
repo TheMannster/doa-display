@@ -15,13 +15,12 @@ local INFO = {
     end,
     citycars = function()
         if not Config.CityCars then return 'misconfigured' end
-        local total = 0
-        for _, v in ipairs(Config.CityCars.Vehicles) do
-            total = total + (v.maxActive or 0)
-        end
+        local models = #Config.CityCars.Vehicles
+        local pick   = Config.CityCars.ModelsPerRotation or models
+        if pick > models then pick = models end
         local mins = math.floor(Config.CityCars.RotationInterval / 60000)
-        return ('%d model(s), %d slot(s) across %d location(s), rotates every %dm'):format(
-            #Config.CityCars.Vehicles, total, #Config.CityCars.Locations, mins)
+        return ('%d model(s), %d picked per round, %d location(s), rotates every %dm'):format(
+            models, pick, #Config.CityCars.Locations, mins)
     end,
 }
 

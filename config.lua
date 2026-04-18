@@ -1,28 +1,19 @@
 Config = {}
 
--------------------------------------------------------------------------------
--- Modules
--------------------------------------------------------------------------------
--- Toggle entire feature modules on/off here. The server console will print
--- which modules are active when the resource starts.
+-- Toggle feature modules. Disabled modules don't load at all.
 Config.Modules = {
-    display  = true,   -- Static display vehicles around a dealership / showroom
-    citycars = true,   -- Random ambient parked cars rotating around the city
+    display  = true,
+    citycars = true,
 }
 
 -------------------------------------------------------------------------------
--- Display module
+-- Display module - static showroom cars
 -------------------------------------------------------------------------------
--- Color IDs reference: https://wiki.rage.mp/index.php?title=Vehicle_Colors
+-- Color IDs: https://wiki.rage.mp/index.php?title=Vehicle_Colors
 Config.Display = {
-    -- How close (in meters) a player must be before the display vehicles spawn
-    -- in. Keeps things lightweight when nobody is near the shop.
+    -- Cars only spawn once a player gets within this many meters.
     SpawnDistance = 80.0,
 
-    -- One entry per display car.
-    --   model  : spawn name of the vehicle (e.g. 'adder', 'zentorno')
-    --   coords : vec4(x, y, z, heading) - heading is the direction the car faces
-    --   color  : {primary, secondary} GTA color IDs - omit for default
     Vehicles = {
         {
             model  = 'm2',
@@ -31,77 +22,93 @@ Config.Display = {
         {
             model  = 'tempesta',
             coords = vec4(-302.66, -1347.25, 32.6, 87.69),
-            color  = {27, 27},     -- metallic red
+            color  = {27, 27},
         },
     },
 }
 
 -------------------------------------------------------------------------------
--- CityCars module
+-- CityCars module - random ambient stealable cars
 -------------------------------------------------------------------------------
--- Spawns a configurable amount of each model around the city in random parking
--- spots. Every RotationInterval the cars are deleted and respawned at new
--- random unused locations.
---
--- Requirements: OneSync (or OneSync infinity) must be enabled on the server,
--- since vehicles are spawned server-side so every player sees them at the
--- same place.
+-- Requires OneSync (cars are spawned server-side).
 Config.CityCars = {
-    -- Time between location rotations (in milliseconds).
-    RotationInterval = 10 * 60 * 1000,   -- 10 minutes
+    -- How often the city is wiped + respawned at fresh random spots (ms).
+    RotationInterval = 10 * 60 * 1000,
 
-    -- If true the license plate is overwritten with 8 blank spaces so the
-    -- plate appears empty (simulates a stolen / hot car with no plate).
+    -- Overwrite the plate with blank spaces so cars look unregistered.
     BlankPlates = true,
 
-    -- A car is "released" from our system if a player has sat in any seat
-    -- OR the vehicle has moved further than this many meters from its
-    -- spawn point. Released cars are NOT despawned by us on rotation -
-    -- they're left in the world for the player / AdvancedParking to take
-    -- ownership of. The freed slot will be refilled on the NEXT rotation
-    -- tick (not instantly).
+    -- A car is "released" (we stop tracking it) once a player sits in it OR
+    -- it moves this many meters from its spawn point. Released cars are left
+    -- in the world - the freed slot is refilled on the NEXT rotation.
     StolenDistance = 10.0,
 
-    -- Set to true if you have a vehicle persistence resource (e.g. kiminaze
-    -- AdvancedParking) handling stolen cars - we'll never touch a released
-    -- car again and let that resource manage its lifetime.
-    --
-    -- Set to false if you DON'T have one. We'll then watch released cars
-    -- ourselves and clean them up once they've been abandoned (no players
-    -- nearby) for AbandonedCleanupMinutes, so orphan vehicles don't build
-    -- up over long server uptimes.
-    PersistReleasedCars = false,
+    -- true  : you have a persistence resource (e.g. kiminaze AdvancedParking)
+    --         that will manage released cars - we never touch them again.
+    -- false : we watch released cars ourselves and clean them up after
+    --         AbandonedCleanupMinutes with no player nearby.
+    PersistReleasedCars = true,
 
     -- Only used when PersistReleasedCars = false.
-    -- A released car is considered "abandoned" once no player has been
-    -- within ~150m of it. After this many minutes of being continuously
-    -- abandoned, we delete it. Reset to 0 the moment any player gets close
-    -- again, so cars a player drives off and leaves nearby are safe.
     AbandonedCleanupMinutes = 30,
 
-    -- Models to spawn around the city.
-    --   model     : vehicle spawn name
-    --   maxActive : how many of this model exist in the city at any given time
+    -- How many DIFFERENT models are picked from the Vehicles list each
+    -- rotation. Lets you have a big variety pool but only a subset out at
+    -- any one time. Capped at the number of entries in Vehicles and the
+    -- number of available locations.
+    ModelsPerRotation = 8,
+
+    -- Per-model upper limit. For each model picked this round, a random
+    -- count between 1 and maxActive is spawned - it's a ceiling, not a
+    -- fixed amount.
     Vehicles = {
-        { model = 'sultan', maxActive = 3 },
-        { model = 'futo',   maxActive = 2 },
-        { model = 'comet2', maxActive = 1 },
+        { model = 'm2', maxActive = 1 },
+        { model = 'ToraChargerRedeyeDAWG',   maxActive = 1 },
+        { model = 'comet3', maxActive = 1 },
+        { model = 'comet5', maxActive = 1 },
+        { model = 'comet6', maxActive = 1 },
+        { model = 'comet7', maxActive = 1 },
+        { model = 'entity2', maxActive = 1 },
+        { model = 'sultanrs', maxActive = 1 },
+        { model = 'btype', maxActive = 1 },
+        { model = 'buffalo4', maxActive = 1 },
+        { model = 'broadway', maxActive = 1 },
+        { model = 'dominator3', maxActive = 1 },
+        { model = 'dominator9', maxActive = 1 },
+        { model = 'driftgauntlet4', maxActive = 1 },
+        { model = 'gauntlet4', maxActive = 1 },
     },
 
-    -- All possible parking locations the cars may pick from.
-    -- The total number of locations should be GREATER than the sum of all
-    -- maxActive values, otherwise rotations will pick the same spots every
-    -- round.
-    -- vec4(x, y, z, heading)
+    -- Pool of parking spots. Total locations should exceed the sum of all
+    -- maxActive values so rotations actually pick different spots.
     Locations = {
-        vec4(215.30,  -810.10, 30.30, 250.0),
-        vec4(-56.40, -1096.50, 26.40, 30.0),
-        vec4(127.40, -1031.20, 29.30, 70.0),
-        vec4(-1037.50, -2737.30, 20.20, 240.0),
-        vec4(294.80,  -566.20, 43.20, 340.0),
-        vec4(-714.80,  -154.30, 37.40, 30.0),
-        vec4(-1156.50, -1518.00, 10.60, 30.0),
-        vec4(-490.20,  -707.40, 33.20, 180.0),
-        -- add as many as you like; only a random subset will be used per round
+        vec4(906.17, -58.69, 78.76, 60.12),
+        vec4(928.74, -101.15, 78.76, 44.37),
+        vec4(-216.4, 314.15, 96.95, 187.34),
+        vec4(-391.66, 286.58, 84.86, 266.75),
+        vec4(-1546.27, -421.35, 41.99, 48.8),
+        vec4(-1217.47, -688.75, 25.9, 309.69),
+        vec4(52.35, -1617.16, 29.41, 140.38),
+        vec4(472.84, -899.37, 35.97, 68.48),
+        vec4(228.4, -31.0, 69.72, 161.21),
+        vec4(502.99, -610.07, 24.75, 264.3),
+        vec4(-670.86, -752.54, 30.79, 184.71),
+        vec4(-1526.35, -552.09, 33.31, 215.36),
+        vec4(-1791.57, -499.78, 38.77, 299.97),
+        vec4(-1228.91, -1231.39, 6.6, 20.92),
+        vec4(-1519.54, -887.58, 9.68, 37.0),
+        vec4(-2015.94, -335.01, 47.67, 238.57),
+        vec4(-1981.87, -308.39, 47.67, 55.82),
+        vec4(-1573.66, -285.17, 47.84, 318.15),
+        vec4(-1304.55, -221.62, 46.61, 300.29),
+        vec4(-185.03, 171.41, 69.89, 174.24),
+        vec4(174.69, -1643.62, 28.86, 120.62),
+        vec4(-139.14, -590.75, 31.99, 65.02),
+        vec4(485.16, -1083.21, 28.77, 85.37),
+        vec4(-304.98, -1207.12, 24.67, 1.69),
+        vec4(-1279.75, -1303.77, 3.59, 113.66),
+        vec4(-1141.56, -1451.46, 4.32, 36.42),
+        vec4(-1148.27, -1563.08, 3.96, 38.2),
+        vec4(-1111.29, -1501.76, 4.23, 217.65),
     },
 }

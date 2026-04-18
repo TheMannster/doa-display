@@ -35,6 +35,12 @@ end
 -- Each entry: { entity = vehHandle, loc = vec4 }
 local activeVehicles = {}
 
+-- Sets tracking what was used last rotation. The next rotation prefers
+-- entries NOT in these sets, only falling back to reusing one if there
+-- aren't enough fresh options available.
+local lastUsedLocations = {}
+local lastUsedModels    = {}
+
 -- Released cars we're watching for abandoned-cleanup (only populated when
 -- Config.CityCars.PersistReleasedCars is false). Each entry:
 --   { entity = vehHandle, abandonedSince = nil | timestamp(ms) }
@@ -50,14 +56,17 @@ local ABANDONED_NEARBY_DISTANCE = 150.0
 -- How often the abandoned-cleanup watchdog wakes up.
 local ABANDONED_CHECK_INTERVAL_MS = 60 * 1000
 
+-- How often the break-in watchdog polls active cars for occupants.
+local BREAKIN_CHECK_INTERVAL_MS = 3 * 1000
+
 local function locationKey(loc)
     return ('%.2f|%.2f|%.2f'):format(loc.x, loc.y, loc.z)
 end
 
-local function shuffledLocations()
+local function shuffled(src)
     local pool = {}
-    for i = 1, #Config.CityCars.Locations do
-        pool[i] = Config.CityCars.Locations[i]
+    for i = 1, #src do
+        pool[i] = src[i]
     end
     -- Fisher-Yates shuffle
     for i = #pool, 2, -1 do
@@ -139,31 +148,74 @@ local function despawnAll()
     activeVehicles = {}
 end
 
--- Full city respawn at fresh random spots. Always tops every model back up
--- to its maxActive count.
+-- Generic "shuffled fresh first, then shuffled reused" pick order. Used for
+-- both locations and models so that back-to-back repeats only happen when
+-- the pool isn't big enough to avoid them.
+local function freshFirstOrder(items, lastUsedSet, keyFn)
+    local fresh, reused = {}, {}
+    for _, item in ipairs(items) do
+        if lastUsedSet[keyFn(item)] then
+            reused[#reused + 1] = item
+        else
+            fresh[#fresh + 1] = item
+        end
+    end
+
+    fresh  = shuffled(fresh)
+    reused = shuffled(reused)
+
+    local order = {}
+    for _, item in ipairs(fresh)  do order[#order + 1] = item end
+    for _, item in ipairs(reused) do order[#order + 1] = item end
+    return order
+end
+
+-- Full city respawn at fresh random spots. Picks a random subset of models
+-- (up to ModelsPerRotation) and spawns a random 1..maxActive count of each.
 local function spawnRound()
     local _, released = despawnUntouched()
 
-    local locations = shuffledLocations()
-    local nextLoc = 1
+    local locations = freshFirstOrder(Config.CityCars.Locations, lastUsedLocations, locationKey)
+    local models    = freshFirstOrder(Config.CityCars.Vehicles, lastUsedModels, function(v) return v.model end)
+    local nextLoc   = 1
+    local usedLocsThisRound   = {}
+    local usedModelsThisRound = {}
 
-    for _, vehCfg in ipairs(Config.CityCars.Vehicles) do
-        for _ = 1, (vehCfg.maxActive or 0) do
-            local loc = locations[nextLoc]
-            if not loc then
-                TM.Log.warn('citycars',
-                    'ran out of unique locations - add more entries to Config.CityCars.Locations')
-                return released
-            end
-            nextLoc = nextLoc + 1
+    local pickCount = Config.CityCars.ModelsPerRotation or #models
+    if pickCount > #models then pickCount = #models end
 
-            local veh = spawnCar(vehCfg.model, loc)
-            if veh then
-                activeVehicles[#activeVehicles + 1] = { entity = veh, loc = loc }
+    for i = 1, pickCount do
+        local vehCfg = models[i]
+        local maxA   = vehCfg.maxActive or 0
+        if maxA > 0 then
+            usedModelsThisRound[vehCfg.model] = true
+            local count = math.random(1, maxA)
+            for _ = 1, count do
+                local loc = locations[nextLoc]
+                if not loc then
+                    TM.Log.warn('citycars',
+                        'ran out of unique locations - add more entries to Config.CityCars.Locations')
+                    lastUsedLocations = usedLocsThisRound
+                    lastUsedModels    = usedModelsThisRound
+                    return released
+                end
+                nextLoc = nextLoc + 1
+                usedLocsThisRound[locationKey(loc)] = true
+
+                local veh = spawnCar(vehCfg.model, loc)
+                if veh then
+                    activeVehicles[#activeVehicles + 1] = {
+                        entity = veh,
+                        loc    = loc,
+                        model  = vehCfg.model,
+                    }
+                end
             end
         end
     end
 
+    lastUsedLocations = usedLocsThisRound
+    lastUsedModels    = usedModelsThisRound
     return released
 end
 
@@ -178,6 +230,57 @@ CreateThread(function()
                 released,
                 math.floor(Config.CityCars.RotationInterval / 60000)))
         Wait(Config.CityCars.RotationInterval)
+    end
+end)
+
+-- Walks every player ped looking for one currently sitting in `veh`. Returns
+-- (playerSrcId, playerName) on a hit, nil otherwise.
+local function findOccupant(veh)
+    for _, playerId in ipairs(GetPlayers()) do
+        local ped = GetPlayerPed(playerId)
+        if ped and ped ~= 0 and GetVehiclePedIsIn(ped, false) == veh then
+            return tonumber(playerId), GetPlayerName(playerId) or 'unknown'
+        end
+    end
+    return nil
+end
+
+-- Break-in watchdog. Polls the active set looking for someone climbing into
+-- one of our city cars in real time. When detected we log it to console and
+-- promote the car straight to "released" so the rotation tick won't yank it
+-- out from under the player.
+CreateThread(function()
+    Wait(4000)
+    while true do
+        Wait(BREAKIN_CHECK_INTERVAL_MS)
+
+        local watchReleased = not Config.CityCars.PersistReleasedCars
+        local survivors = {}
+
+        for _, entry in ipairs(activeVehicles) do
+            if not DoesEntityExist(entry.entity) then
+                -- already gone, drop it
+            else
+                local srcId, name = findOccupant(entry.entity)
+                if srcId then
+                    local pos = GetEntityCoords(entry.entity)
+                    TM.Log.info('citycars',
+                        ('^1break-in^7 - ^3%s^7 (id ^2%d^7) entered ^2%s^7 at ^2%.1f, %.1f, %.1f^7'):format(
+                            name, srcId, entry.model or 'unknown', pos.x, pos.y, pos.z))
+
+                    if watchReleased then
+                        releasedVehicles[#releasedVehicles + 1] = {
+                            entity = entry.entity,
+                            abandonedSince = nil,
+                        }
+                    end
+                else
+                    survivors[#survivors + 1] = entry
+                end
+            end
+        end
+
+        activeVehicles = survivors
     end
 end)
 
