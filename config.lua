@@ -62,7 +62,7 @@ Config.CityCars = {
     -- rotation. Lets you have a big variety pool but only a subset out at
     -- any one time. Capped at the number of entries in Vehicles and the
     -- number of available locations.
-    ModelsPerRotation = 8,
+    ModelsPerRotation = 5,
 
     -- Per-model upper limit. For each model picked this round, a random
     -- count between 1 and maxActive is spawned - it's a ceiling, not a
