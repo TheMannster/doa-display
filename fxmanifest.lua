@@ -17,5 +17,6 @@ client_scripts {
 
 server_scripts {
     'server/modules/citycars.lua',
+    'server/modules/versioncheck.lua',
     'server/main.lua',
 }

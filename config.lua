@@ -6,6 +6,12 @@ Config.Modules = {
     citycars = true,
 }
 
+-- Checks GitHub for a newer release on boot and prints the changelog if one
+-- exists.
+Config.VersionCheck = {
+    Enabled = true,
+}
+
 -------------------------------------------------------------------------------
 -- Display module - static showroom cars
 -------------------------------------------------------------------------------
