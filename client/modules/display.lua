@@ -5,7 +5,7 @@
 
 if not Config.Modules or not Config.Modules.display then return end
 if not Config.Display then
-    DOA.Log.warn('display', 'module enabled but Config.Display is missing')
+    TM.Log.warn('display', 'module enabled but Config.Display is missing')
     return
 end
 

@@ -1,9 +1,9 @@
 fx_version 'cerulean'
 game 'gta5'
 
-name 'doa-display'
+name 'tm-streetside'
 description 'Modular display + ambient city vehicles'
-author 'DOA'
+author 'themannster'
 version '1.1.0'
 
 shared_scripts {

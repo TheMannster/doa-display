@@ -29,7 +29,7 @@ CreateThread(function()
     -- Tiny delay so module files have finished loading before we summarise.
     Wait(100)
 
-    DOA.Log.banner()
+    TM.Log.banner()
 
     local active, total = 0, 0
     for _, name in ipairs(MODULE_ORDER) do
@@ -38,11 +38,11 @@ CreateThread(function()
         if enabled then
             active = active + 1
             local info = INFO[name] and INFO[name]() or 'active'
-            DOA.Log.module(name, true, info)
+            TM.Log.module(name, true, info)
         else
-            DOA.Log.module(name, false)
+            TM.Log.module(name, false)
         end
     end
 
-    DOA.Log.footer(active, total)
+    TM.Log.footer(active, total)
 end)

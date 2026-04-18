@@ -56,10 +56,28 @@ Config.CityCars = {
 
     -- A car is "released" from our system if a player has sat in any seat
     -- OR the vehicle has moved further than this many meters from its
-    -- spawn point. Released cars are NOT despawned - they're left in the
-    -- world for the player / AdvancedParking to take ownership of. The
-    -- freed slot will be refilled on the NEXT rotation tick (not instantly).
+    -- spawn point. Released cars are NOT despawned by us on rotation -
+    -- they're left in the world for the player / AdvancedParking to take
+    -- ownership of. The freed slot will be refilled on the NEXT rotation
+    -- tick (not instantly).
     StolenDistance = 10.0,
+
+    -- Set to true if you have a vehicle persistence resource (e.g. kiminaze
+    -- AdvancedParking) handling stolen cars - we'll never touch a released
+    -- car again and let that resource manage its lifetime.
+    --
+    -- Set to false if you DON'T have one. We'll then watch released cars
+    -- ourselves and clean them up once they've been abandoned (no players
+    -- nearby) for AbandonedCleanupMinutes, so orphan vehicles don't build
+    -- up over long server uptimes.
+    PersistReleasedCars = false,
+
+    -- Only used when PersistReleasedCars = false.
+    -- A released car is considered "abandoned" once no player has been
+    -- within ~150m of it. After this many minutes of being continuously
+    -- abandoned, we delete it. Reset to 0 the moment any player gets close
+    -- again, so cars a player drives off and leaves nearby are safe.
+    AbandonedCleanupMinutes = 30,
 
     -- Models to spawn around the city.
     --   model     : vehicle spawn name
