@@ -10,7 +10,7 @@
 - New ox_inventory exports `tm-streetside.uselockpick` and `tm-streetside.useaccesstool` (the latter wraps `r14-evidence.accesstool`)
 - New helper exports `tm-streetside.CanSteal` and `tm-streetside.GetOnlineCops`
 - Boot-time orphan sweep: leftover city cars from a crashed / failed shutdown are cleaned up on next start
-- Spawn-clearance check: spots with a vehicle within 3m are skipped and logged
+- Spawn-clearance check: spots with a vehicle within 2.5m are skipped and logged
 - More diagnostic rotation log: now reports despawned, released, and already-gone counts
 - Added `ox_lib`, `ox_inventory`, `qbx_core` dependencies
 

@@ -107,11 +107,12 @@ local function spawnCar(model, loc)
     end
     SetVehicleDoorsLocked(veh, 2)
 
+    Wait(0)
     for _ = 1, 50 do
-        local ok = pcall(function()
+        if DoesEntityExist(veh) then
             Entity(veh).state:set('tm_streetside', true, true)
-        end)
-        if ok then break end
+            return veh
+        end
         Wait(20)
     end
 
@@ -182,7 +183,7 @@ end
 
 -- Minimum clearance (meters) required at a spawn point. If any existing
 -- vehicle is closer than this we skip the spot and try the next one.
-local SPAWN_CLEARANCE = 3.0
+local SPAWN_CLEARANCE = 2.5
 
 local function locationOccupied(loc)
     local pool = GetAllVehicles()
