@@ -89,7 +89,6 @@ Config.CityCars = {
         { model = 'broadway', maxActive = 1 },
         { model = 'dominator3', maxActive = 1 },
         { model = 'dominator9', maxActive = 1 },
-        { model = 'driftgauntlet4', maxActive = 1 },
         { model = 'gauntlet4', maxActive = 1 },
     },
 

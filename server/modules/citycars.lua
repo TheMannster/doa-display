@@ -102,27 +102,42 @@ local function spawnCar(model, loc)
         return nil
     end
 
-    -- 8 spaces = blank-looking plate (GTA plates are max 8 chars).
     if Config.CityCars.BlankPlates then
         SetVehicleNumberPlateText(veh, '        ')
     end
-
     SetVehicleDoorsLocked(veh, 2)
-    Entity(veh).state:set('tm_streetside', true, true)
 
+    -- Retry the state bag set until the entity has a network ID. If the
+    -- entity gets deleted by another script in the meantime we bail.
+    local tries = 0
+    while tries < 50 do
+        if not DoesEntityExist(veh) then
+            TM.Log.warn('citycars',
+                ('%s at %s was deleted by something between spawn and state-tag (~%dms) - check for a vehicle whitelist / persistence script'):format(
+                    tostring(model), locationKey(loc), tries * 20))
+            return nil
+        end
+        local ok = pcall(function()
+            Entity(veh).state:set('tm_streetside', true, true)
+        end)
+        if ok then return veh end
+        Wait(20)
+        tries = tries + 1
+    end
+
+    TM.Log.warn('citycars',
+        ('%s at %s never got a network id within ~1s - including in active set without state tag'):format(
+            tostring(model), locationKey(loc)))
     return veh
 end
 
--- Despawn untouched entries, release touched ones (untrack but keep alive).
--- If PersistReleasedCars is false, released cars are added to releasedVehicles
--- so the abandoned-cleanup watchdog can deal with them later.
 local function despawnUntouched()
-    local despawned, released = 0, 0
+    local despawned, released, gone = 0, 0, 0
     local watchReleased = not Config.CityCars.PersistReleasedCars
 
     for _, entry in ipairs(activeVehicles) do
         if not DoesEntityExist(entry.entity) then
-            -- already gone
+            gone = gone + 1
         elseif isTouched(entry) then
             released = released + 1
             if watchReleased then
@@ -133,22 +148,56 @@ local function despawnUntouched()
             end
         else
             DeleteEntity(entry.entity)
-            despawned = despawned + 1
+            if DoesEntityExist(entry.entity) then
+                TM.Log.warn('citycars',
+                    ('failed to delete %s (entity %d) - another resource may have taken ownership'):format(
+                        entry.model or '?', entry.entity))
+            else
+                despawned = despawned + 1
+            end
         end
     end
     activeVehicles = {}
-    return despawned, released
+    return despawned, released, gone
 end
 
 -- Wipe everything we still own (resource stop). Released cars are no longer
 -- in activeVehicles so they're never touched here.
+local function forceDelete(entity)
+    if not DoesEntityExist(entity) then return true end
+    DeleteEntity(entity)
+    return not DoesEntityExist(entity)
+end
+
 local function despawnAll()
+    local deleted, failed = 0, 0
+    local survivors = {}
+
     for _, entry in ipairs(activeVehicles) do
-        if DoesEntityExist(entry.entity) then
-            DeleteEntity(entry.entity)
+        if forceDelete(entry.entity) then
+            deleted = deleted + 1
+        else
+            survivors[#survivors + 1] = entry
         end
     end
+
+    if #survivors > 0 then
+        Wait(50)
+        for _, entry in ipairs(survivors) do
+            if forceDelete(entry.entity) then
+                deleted = deleted + 1
+            else
+                failed = failed + 1
+                TM.Log.warn('citycars',
+                    ('shutdown: failed to delete %s (entity %d) - another resource may have taken ownership'):format(
+                        entry.model or '?', entry.entity))
+            end
+        end
+    end
+
     activeVehicles = {}
+    TM.Log.info('citycars',
+        ('shutdown: deleted ^2%d^7, failed ^1%d^7'):format(deleted, failed))
 end
 
 -- Generic "shuffled fresh first, then shuffled reused" pick order. Used for
@@ -173,10 +222,29 @@ local function freshFirstOrder(items, lastUsedSet, keyFn)
     return order
 end
 
+-- Minimum clearance (meters) required at a spawn point. If any existing
+-- vehicle is closer than this we skip the spot and try the next one.
+local SPAWN_CLEARANCE = 3.0
+
+local function locationOccupied(loc)
+    local pool = GetAllVehicles()
+    if not pool then return false end
+    local origin = vector3(loc.x, loc.y, loc.z)
+    for _, veh in ipairs(pool) do
+        if DoesEntityExist(veh) then
+            if #(GetEntityCoords(veh) - origin) < SPAWN_CLEARANCE then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 -- Full city respawn at fresh random spots. Picks a random subset of models
 -- (up to ModelsPerRotation) and spawns a random 1..maxActive count of each.
+-- Skips any location that already has a vehicle within SPAWN_CLEARANCE.
 local function spawnRound()
-    local _, released = despawnUntouched()
+    local despawned, released, gone = despawnUntouched()
 
     local locations = freshFirstOrder(Config.CityCars.Locations, lastUsedLocations, locationKey)
     local models    = freshFirstOrder(Config.CityCars.Vehicles, lastUsedModels, function(v) return v.model end)
@@ -187,6 +255,20 @@ local function spawnRound()
     local pickCount = Config.CityCars.ModelsPerRotation or #models
     if pickCount > #models then pickCount = #models end
 
+    local function nextFreeLocation()
+        while true do
+            local loc = locations[nextLoc]
+            if not loc then return nil end
+            nextLoc = nextLoc + 1
+            if locationOccupied(loc) then
+                TM.Log.info('citycars',
+                    ('skipping ^3%s^7 - vehicle already there'):format(locationKey(loc)))
+            else
+                return loc
+            end
+        end
+    end
+
     for i = 1, pickCount do
         local vehCfg = models[i]
         local maxA   = vehCfg.maxActive or 0
@@ -194,15 +276,14 @@ local function spawnRound()
             usedModelsThisRound[vehCfg.model] = true
             local count = math.random(1, maxA)
             for _ = 1, count do
-                local loc = locations[nextLoc]
+                local loc = nextFreeLocation()
                 if not loc then
                     TM.Log.warn('citycars',
-                        'ran out of unique locations - add more entries to Config.CityCars.Locations')
+                        'ran out of free locations - add more entries to Config.CityCars.Locations')
                     lastUsedLocations = usedLocsThisRound
                     lastUsedModels    = usedModelsThisRound
-                    return released
+                    return despawned, released, gone
                 end
-                nextLoc = nextLoc + 1
                 usedLocsThisRound[locationKey(loc)] = true
 
                 local veh = spawnCar(vehCfg.model, loc)
@@ -219,18 +300,38 @@ local function spawnRound()
 
     lastUsedLocations = usedLocsThisRound
     lastUsedModels    = usedModelsThisRound
-    return released
+    return despawned, released, gone
 end
 
--- Rotation timer - the only thing that spawns cars.
+-- Boot-time orphan sweep. If a previous instance failed to clean up its
+-- cars on shutdown they're still in the world tagged with the
+-- `tm_streetside` state bag - delete them before our first rotation runs.
+local function sweepOrphans()
+    local pool = GetAllVehicles()
+    if not pool then return 0 end
+    local removed = 0
+    for _, veh in ipairs(pool) do
+        if Entity(veh).state.tm_streetside then
+            if forceDelete(veh) then removed = removed + 1 end
+        end
+    end
+    if removed > 0 then
+        TM.Log.info('citycars', ('boot sweep: removed ^2%d^7 orphan(s) from previous run'):format(removed))
+    end
+    return removed
+end
+
 CreateThread(function()
-    Wait(2000)   -- give the resource time to fully come up
+    Wait(2000)
+    sweepOrphans()
     while true do
-        local released = spawnRound()
+        local despawned, released, gone = spawnRound()
         TM.Log.info('citycars',
-            ('rotated - ^2%d^7 active, ^3%d^7 released this round, next rotation in ^2%dm^7'):format(
+            ('rotated - ^2%d^7 active, ^2%d^7 cleaned, ^3%d^7 released, ^9%d^7 already gone, next in ^2%dm^7'):format(
                 #activeVehicles,
-                released,
+                despawned or 0,
+                released or 0,
+                gone or 0,
                 math.floor(Config.CityCars.RotationInterval / 60000)))
         Wait(Config.CityCars.RotationInterval)
     end
