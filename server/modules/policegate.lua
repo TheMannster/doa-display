@@ -2,7 +2,7 @@ if not Config.Modules or not Config.Modules.citycars then return end
 
 local function isPoliceJob(name)
     if not name then return false end
-    for _, job in ipairs(Config.CityCars.PoliceJobs or {}) do
+    for _, job in ipairs(Config.CityCars.Police.Jobs or {}) do
         if name == job then return true end
     end
     return false
@@ -15,7 +15,7 @@ local function getOnlineCops()
         if player and player.PlayerData and player.PlayerData.job then
             local job = player.PlayerData.job
             if isPoliceJob(job.name) then
-                if Config.CityCars.RequireOnDuty then
+                if Config.CityCars.Police.RequireOnDuty then
                     if job.onduty then count = count + 1 end
                 else
                     count = count + 1
@@ -27,7 +27,7 @@ local function getOnlineCops()
 end
 
 local function canSteal()
-    return getOnlineCops() >= (Config.CityCars.MinPoliceOnline or 1)
+    return getOnlineCops() >= (Config.CityCars.Police.MinOnline or 1)
 end
 
 exports('CanSteal', canSteal)
@@ -45,7 +45,7 @@ local function tryLockpickGate(src, advanced)
     local isCityCar = lib.callback.await('tm-streetside:isNearCityCar', src)
     if not isCityCar then return 'passthrough' end
     if not canSteal() then
-        notify(src, Config.CityCars.NotEnoughCopsText or 'Not enough cops online.')
+        notify(src, Config.CityCars.Police.NotEnoughCopsText or 'Not enough cops online.')
         return 'blocked'
     end
     TriggerClientEvent('MK_VehicleKeys:Client:UseLockpick', src,
@@ -79,7 +79,7 @@ exports('useaccesstool', function(event, item, inventory, slot, data)
     local src = inventory.id
     local isCityCar = lib.callback.await('tm-streetside:isNearCityCar', src)
     if isCityCar and not canSteal() then
-        notify(src, Config.CityCars.NotEnoughCopsText or 'Not enough cops online.')
+        notify(src, Config.CityCars.Police.NotEnoughCopsText or 'Not enough cops online.')
         return false
     end
 

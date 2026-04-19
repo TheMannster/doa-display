@@ -1,5 +1,9 @@
 Config = {}
 
+-------------------------------------------------------------------------------
+-- Global
+-------------------------------------------------------------------------------
+
 -- Toggle feature modules. Disabled modules don't load at all.
 Config.Modules = {
     display  = true,
@@ -34,66 +38,99 @@ Config.Display = {
 }
 
 -------------------------------------------------------------------------------
--- CityCars module - random ambient stealable cars
+-- CityCars module - rotating ambient stealable cars
 -------------------------------------------------------------------------------
 -- Requires OneSync (cars are spawned server-side).
 Config.CityCars = {
-    -- How often the city is wiped + respawned at fresh random spots (ms).
-    RotationInterval = 10 * 60 * 1000,
 
-    -- Overwrite the plate with blank spaces so cars look unregistered.
-    BlankPlates = true,
+    ---------------------------------------------------------------------------
+    -- Rotation
+    ---------------------------------------------------------------------------
+    Rotation = {
+        -- How often the city is wiped + respawned at fresh random spots (ms).
+        Interval = 10 * 60 * 1000,
 
-    -- A car is "released" (we stop tracking it) once a player sits in it OR
-    -- it moves this many meters from its spawn point. Released cars are left
-    -- in the world - the freed slot is refilled on the NEXT rotation.
-    StolenDistance = 10.0,
+        -- How many DIFFERENT models are picked from the Vehicles list each
+        -- rotation. Lets you have a big variety pool but only a subset out at
+        -- any one time. Capped at #Vehicles and the number of free locations.
+        ModelsPerRound = 5,
 
-    -- true  : you have a persistence resource (e.g. kiminaze AdvancedParking)
-    --         that will manage released cars - we never touch them again.
-    -- false : we watch released cars ourselves and clean them up after
-    --         AbandonedCleanupMinutes with no player nearby.
-    PersistReleasedCars = true,
+        -- Log every parking spot that's skipped because a vehicle is already
+        -- parked there. Useful for debugging spawn coverage but spammy on
+        -- busy servers - leave off unless you need it.
+        LogSkippedSpots = false,
+    },
 
-    -- Only used when PersistReleasedCars = false.
-    AbandonedCleanupMinutes = 30,
+    ---------------------------------------------------------------------------
+    -- Per-vehicle behaviour
+    ---------------------------------------------------------------------------
+    Vehicle = {
+        -- Overwrite the plate with blank spaces so cars look unregistered.
+        BlankPlates = true,
 
-    -- Police gate. City cars spawn locked. Lockpicking one is blocked unless
-    -- at least MinPoliceOnline cops (matching one of PoliceJobs) are online.
-    -- If RequireOnDuty is true only on-duty cops count.
-    PoliceJobs        = { 'police', 'lscso' },
-    MinPoliceOnline   = 1,
-    RequireOnDuty     = true,
-    NotEnoughCopsText = 'The streets are too quiet... maybe try later.',
+        -- A car is "released" (we stop tracking it) once a player sits in it
+        -- OR it moves this many meters from its spawn point. Released cars
+        -- are left in the world - the freed slot is refilled on the NEXT
+        -- rotation.
+        StolenDistance = 10.0,
+    },
 
-    -- How many DIFFERENT models are picked from the Vehicles list each
-    -- rotation. Lets you have a big variety pool but only a subset out at
-    -- any one time. Capped at the number of entries in Vehicles and the
-    -- number of available locations.
-    ModelsPerRotation = 5,
+    ---------------------------------------------------------------------------
+    -- Released car cleanup
+    ---------------------------------------------------------------------------
+    Cleanup = {
+        -- true  : you have a persistence resource (e.g. kiminaze
+        --         AdvancedParking) that will manage released cars - we never
+        --         touch them again.
+        -- false : we watch released cars ourselves and delete them after
+        --         AbandonedMinutes with no player nearby.
+        PersistReleased = true,
 
+        -- Only used when PersistReleased = false.
+        AbandonedMinutes = 30,
+    },
+
+    ---------------------------------------------------------------------------
+    -- Police gate
+    -- City cars spawn locked. Lockpicking one is blocked unless at least
+    -- MinOnline cops (matching one of Jobs) are online. If RequireOnDuty is
+    -- true only on-duty cops count.
+    ---------------------------------------------------------------------------
+    Police = {
+        Jobs              = { 'police', 'lscso' },
+        MinOnline         = 1,
+        RequireOnDuty     = true,
+        NotEnoughCopsText = 'The streets are too quiet... maybe try later.',
+    },
+
+    ---------------------------------------------------------------------------
+    -- Vehicle pool
     -- Per-model upper limit. For each model picked this round, a random
     -- count between 1 and maxActive is spawned - it's a ceiling, not a
     -- fixed amount.
+    ---------------------------------------------------------------------------
     Vehicles = {
-        { model = 'm2', maxActive = 1 },
-        { model = 'ToraChargerRedeyeDAWG',   maxActive = 1 },
-        { model = 'comet3', maxActive = 1 },
-        { model = 'comet5', maxActive = 1 },
-        { model = 'comet6', maxActive = 1 },
-        { model = 'comet7', maxActive = 1 },
-        { model = 'entity2', maxActive = 1 },
-        { model = 'sultanrs', maxActive = 1 },
-        { model = 'btype', maxActive = 1 },
-        { model = 'buffalo4', maxActive = 1 },
-        { model = 'broadway', maxActive = 1 },
-        { model = 'dominator3', maxActive = 1 },
-        { model = 'dominator9', maxActive = 1 },
-        { model = 'gauntlet4', maxActive = 1 },
+        { model = 'm2',                   maxActive = 1 },
+        { model = 'ToraChargerRedeyeDAWG', maxActive = 1 },
+        { model = 'comet3',               maxActive = 1 },
+        { model = 'comet5',               maxActive = 1 },
+        { model = 'comet6',               maxActive = 1 },
+        { model = 'comet7',               maxActive = 1 },
+        { model = 'entity2',              maxActive = 1 },
+        { model = 'sultanrs',             maxActive = 1 },
+        { model = 'btype',                maxActive = 1 },
+        { model = 'buffalo4',             maxActive = 1 },
+        { model = 'broadway',             maxActive = 1 },
+        { model = 'dominator3',           maxActive = 1 },
+        { model = 'dominator9',           maxActive = 1 },
+        { model = 'gauntlet4',            maxActive = 1 },
     },
 
-    -- Pool of parking spots. Total locations should exceed the sum of all
-    -- maxActive values so rotations actually pick different spots.
+    ---------------------------------------------------------------------------
+    -- Parking spot pool
+    -- Total locations should exceed the sum of all maxActive values so
+    -- rotations actually pick different spots.
+    ---------------------------------------------------------------------------
     Locations = {
         vec4(906.17, -58.69, 78.76, 60.12),
         vec4(928.74, -101.15, 78.76, 44.37),
@@ -124,6 +161,6 @@ Config.CityCars = {
         vec4(-1148.27, -1563.08, 3.96, 38.2),
         vec4(-1111.29, -1501.76, 4.23, 217.65),
         vec4(387.59, -1295.2, 37.93, 231.03),
-        vec4(465.8, -1315.65, 28.6, 211.21)
+        vec4(465.8, -1315.65, 28.6, 211.21),
     },
 }

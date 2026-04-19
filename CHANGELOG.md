@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.3.0]
+- Added `Config.CityCars.Rotation.LogSkippedSpots` toggle (default `false`) to silence the per-spot `skipping ... vehicle already there` log on each rotation
+- **Breaking:** reorganised `Config.CityCars` into logical sub-tables. Renames:
+  - `RotationInterval` -> `Rotation.Interval`
+  - `ModelsPerRotation` -> `Rotation.ModelsPerRound`
+  - `BlankPlates` -> `Vehicle.BlankPlates`
+  - `StolenDistance` -> `Vehicle.StolenDistance`
+  - `PersistReleasedCars` -> `Cleanup.PersistReleased`
+  - `AbandonedCleanupMinutes` -> `Cleanup.AbandonedMinutes`
+  - `PoliceJobs` -> `Police.Jobs`
+  - `MinPoliceOnline` -> `Police.MinOnline`
+  - `RequireOnDuty` -> `Police.RequireOnDuty`
+  - `NotEnoughCopsText` -> `Police.NotEnoughCopsText`
+
 ## [1.2.1]
 - Removed misleading `failed to delete` / `was deleted by something between spawn and state-tag` warnings - they were false positives from `DoesEntityExist` not stabilising in the same tick as `CreateVehicle` / `DeleteEntity`. Spawn and cleanup were already working correctly
 - Shutdown log simplified to a single `deleted N` line

@@ -5,7 +5,7 @@
 -- vehicles with blank plates that any player can jump in and drive off.
 --
 -- Behaviour:
---   * Every Config.CityCars.RotationInterval ms the city is rotated:
+--   * Every Config.CityCars.Rotation.Interval ms the city is rotated:
 --       - cars that nobody touched are deleted
 --       - cars that were sat in or driven away (>StolenDistance) are
 --         released - we forget about them and leave them in the world for
@@ -42,7 +42,7 @@ local lastUsedLocations = {}
 local lastUsedModels    = {}
 
 -- Released cars we're watching for abandoned-cleanup (only populated when
--- Config.CityCars.PersistReleasedCars is false). Each entry:
+-- Config.CityCars.Cleanup.PersistReleased is false). Each entry:
 --   { entity = vehHandle, abandonedSince = nil | timestamp(ms) }
 -- abandonedSince is set the first tick we observe no player nearby and
 -- cleared the moment a player gets close again.
@@ -88,7 +88,7 @@ local function isTouched(entry)
 
     local pos    = GetEntityCoords(entry.entity)
     local origin = vector3(entry.loc.x, entry.loc.y, entry.loc.z)
-    local maxDist = Config.CityCars.StolenDistance or 10.0
+    local maxDist = Config.CityCars.Vehicle.StolenDistance or 10.0
     if #(pos - origin) > maxDist then return true end
 
     return false
@@ -102,7 +102,7 @@ local function spawnCar(model, loc)
         return nil
     end
 
-    if Config.CityCars.BlankPlates then
+    if Config.CityCars.Vehicle.BlankPlates then
         SetVehicleNumberPlateText(veh, '        ')
     end
     SetVehicleDoorsLocked(veh, 2)
@@ -121,7 +121,7 @@ end
 
 local function despawnUntouched()
     local despawned, released, gone = 0, 0, 0
-    local watchReleased = not Config.CityCars.PersistReleasedCars
+    local watchReleased = not Config.CityCars.Cleanup.PersistReleased
 
     for _, entry in ipairs(activeVehicles) do
         if not DoesEntityExist(entry.entity) then
@@ -211,7 +211,7 @@ local function spawnRound()
     local usedLocsThisRound   = {}
     local usedModelsThisRound = {}
 
-    local pickCount = Config.CityCars.ModelsPerRotation or #models
+    local pickCount = Config.CityCars.Rotation.ModelsPerRound or #models
     if pickCount > #models then pickCount = #models end
 
     local function nextFreeLocation()
@@ -220,8 +220,10 @@ local function spawnRound()
             if not loc then return nil end
             nextLoc = nextLoc + 1
             if locationOccupied(loc) then
-                TM.Log.info('citycars',
-                    ('skipping ^3%s^7 - vehicle already there'):format(locationKey(loc)))
+                if Config.CityCars.Rotation.LogSkippedSpots then
+                    TM.Log.info('citycars',
+                        ('skipping ^3%s^7 - vehicle already there'):format(locationKey(loc)))
+                end
             else
                 return loc
             end
@@ -292,8 +294,8 @@ CreateThread(function()
                 despawned or 0,
                 released or 0,
                 gone or 0,
-                math.floor(Config.CityCars.RotationInterval / 60000)))
-        Wait(Config.CityCars.RotationInterval)
+                math.floor(Config.CityCars.Rotation.Interval / 60000)))
+        Wait(Config.CityCars.Rotation.Interval)
     end
 end)
 
@@ -318,7 +320,7 @@ CreateThread(function()
     while true do
         Wait(BREAKIN_CHECK_INTERVAL_MS)
 
-        local watchReleased = not Config.CityCars.PersistReleasedCars
+        local watchReleased = not Config.CityCars.Cleanup.PersistReleased
         local survivors = {}
 
         for _, entry in ipairs(activeVehicles) do
@@ -366,25 +368,25 @@ end
 
 -- Abandoned-cleanup watchdog.
 -- Only runs when the server has no external persistence resource
--- (PersistReleasedCars = false). Periodically walks every released car:
+-- (Cleanup.PersistReleased = false). Periodically walks every released car:
 --   * if the entity is gone, drop it
 --   * if a player is nearby, mark it as "not abandoned"
 --   * otherwise, start (or continue) an abandoned timer; once it crosses
---     AbandonedCleanupMinutes we delete the car so it doesn't stick around
+--     Cleanup.AbandonedMinutes we delete the car so it doesn't stick around
 --     forever.
 CreateThread(function()
     Wait(5000)
     while true do
         Wait(ABANDONED_CHECK_INTERVAL_MS)
 
-        if Config.CityCars.PersistReleasedCars then
+        if Config.CityCars.Cleanup.PersistReleased then
             -- Persistence resource owns these now - drop our list and stop.
             releasedVehicles = {}
             goto continue
         end
 
         local now = GetGameTimer()
-        local maxAbandonedMs = (Config.CityCars.AbandonedCleanupMinutes or 30) * 60 * 1000
+        local maxAbandonedMs = (Config.CityCars.Cleanup.AbandonedMinutes or 30) * 60 * 1000
         local survivors, deleted = {}, 0
 
         for _, entry in ipairs(releasedVehicles) do

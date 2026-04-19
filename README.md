@@ -21,13 +21,13 @@ Modular FiveM resource for parked cars - both the legit kind and the kind people
 
 ## Config
 
-Everything is in [`config.lua`](./config.lua) - toggle modules, set vehicle lists, rotation timing, parking spots, and the police gate (`PoliceJobs`, `MinPoliceOnline`, `RequireOnDuty`).
+Everything is in [`config.lua`](./config.lua) - toggle modules, set vehicle lists, rotation timing, parking spots, and the police gate. The `CityCars` block is grouped into `Rotation`, `Vehicle`, `Cleanup`, `Police`, plus the `Vehicles` and `Locations` pools.
 
 ## Stealing
 
 City cars spawn locked. Lockpick attempts are gated by the police count - if there aren't enough cops online the lockpick item is cancelled and the player gets a notification. Once stolen, the car is released and left alone.
 
-If you run a persistence resource like **kiminaze AdvancedParking**, set `Config.CityCars.PersistReleasedCars = true` and it'll take ownership of released cars. Otherwise leave it `false` and the script will clean up abandoned cars itself after `AbandonedCleanupMinutes`.
+If you run a persistence resource like **kiminaze AdvancedParking**, set `Config.CityCars.Cleanup.PersistReleased = true` and it'll take ownership of released cars. Otherwise leave it `false` and the script will clean up abandoned cars itself after `Cleanup.AbandonedMinutes`.
 
 ## Lockpick wiring (ox_inventory)
 
@@ -54,4 +54,4 @@ If you have any `CreateUseableItem('lockpick', ...)` block elsewhere that fires 
 | `tm-streetside.uselockpick` | server | - | ox_inventory item handler. Wire to lockpick / advancedlockpick. |
 | `tm-streetside.useaccesstool` | server | - | Wraps `r14-evidence.accesstool` - blocks it on city cars when no cops are on, otherwise forwards normally. |
 | `tm-streetside.CanSteal` | server | `boolean` | True if enough cops are online to allow theft. |
-| `tm-streetside.GetOnlineCops` | server | `number` | Count of police that satisfy `PoliceJobs` + `RequireOnDuty`. |
+| `tm-streetside.GetOnlineCops` | server | `number` | Count of police that satisfy `Police.Jobs` + `Police.RequireOnDuty`. |

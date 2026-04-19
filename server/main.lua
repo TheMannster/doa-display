@@ -16,9 +16,9 @@ local INFO = {
     citycars = function()
         if not Config.CityCars then return 'misconfigured' end
         local models = #Config.CityCars.Vehicles
-        local pick   = Config.CityCars.ModelsPerRotation or models
+        local pick   = Config.CityCars.Rotation.ModelsPerRound or models
         if pick > models then pick = models end
-        local mins = math.floor(Config.CityCars.RotationInterval / 60000)
+        local mins = math.floor(Config.CityCars.Rotation.Interval / 60000)
         return ('%d model(s), %d picked per round, %d location(s), rotates every %dm'):format(
             models, pick, #Config.CityCars.Locations, mins)
     end,
