@@ -107,6 +107,9 @@ local function spawnCar(model, loc)
         SetVehicleNumberPlateText(veh, '        ')
     end
 
+    SetVehicleDoorsLocked(veh, 2)
+    Entity(veh).state:set('tm_streetside', true, true)
+
     return veh
 end
 

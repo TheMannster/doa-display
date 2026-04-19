@@ -58,6 +58,14 @@ Config.CityCars = {
     -- Only used when PersistReleasedCars = false.
     AbandonedCleanupMinutes = 30,
 
+    -- Police gate. City cars spawn locked. Lockpicking one is blocked unless
+    -- at least MinPoliceOnline cops (matching one of PoliceJobs) are online.
+    -- If RequireOnDuty is true only on-duty cops count.
+    PoliceJobs        = { 'police', 'lscso' },
+    MinPoliceOnline   = 1,
+    RequireOnDuty     = true,
+    NotEnoughCopsText = 'The streets are too quiet... maybe try later.',
+
     -- How many DIFFERENT models are picked from the Vehicles list each
     -- rotation. Lets you have a big variety pool but only a subset out at
     -- any one time. Capped at the number of entries in Vehicles and the
@@ -116,5 +124,7 @@ Config.CityCars = {
         vec4(-1141.56, -1451.46, 4.32, 36.42),
         vec4(-1148.27, -1563.08, 3.96, 38.2),
         vec4(-1111.29, -1501.76, 4.23, 217.65),
+        vec4(387.59, -1295.2, 37.93, 231.03),
+        vec4(465.8, -1315.65, 28.6, 211.21)
     },
 }
