@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.2.1]
+- Removed misleading `failed to delete` / `was deleted by something between spawn and state-tag` warnings - they were false positives from `DoesEntityExist` not stabilising in the same tick as `CreateVehicle` / `DeleteEntity`. Spawn and cleanup were already working correctly
+- Shutdown log simplified to a single `deleted N` line
+
 ## [1.2.0]
 - City cars now spawn locked and tagged with a `tm_streetside` state bag
 - Added police gate: lockpicking a city car requires `MinPoliceOnline` cops with one of `PoliceJobs` (on-duty when `RequireOnDuty`)

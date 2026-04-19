@@ -107,27 +107,14 @@ local function spawnCar(model, loc)
     end
     SetVehicleDoorsLocked(veh, 2)
 
-    -- Retry the state bag set until the entity has a network ID. If the
-    -- entity gets deleted by another script in the meantime we bail.
-    local tries = 0
-    while tries < 50 do
-        if not DoesEntityExist(veh) then
-            TM.Log.warn('citycars',
-                ('%s at %s was deleted by something between spawn and state-tag (~%dms) - check for a vehicle whitelist / persistence script'):format(
-                    tostring(model), locationKey(loc), tries * 20))
-            return nil
-        end
+    for _ = 1, 50 do
         local ok = pcall(function()
             Entity(veh).state:set('tm_streetside', true, true)
         end)
-        if ok then return veh end
+        if ok then break end
         Wait(20)
-        tries = tries + 1
     end
 
-    TM.Log.warn('citycars',
-        ('%s at %s never got a network id within ~1s - including in active set without state tag'):format(
-            tostring(model), locationKey(loc)))
     return veh
 end
 
@@ -148,13 +135,7 @@ local function despawnUntouched()
             end
         else
             DeleteEntity(entry.entity)
-            if DoesEntityExist(entry.entity) then
-                TM.Log.warn('citycars',
-                    ('failed to delete %s (entity %d) - another resource may have taken ownership'):format(
-                        entry.model or '?', entry.entity))
-            else
-                despawned = despawned + 1
-            end
+            despawned = despawned + 1
         end
     end
     activeVehicles = {}
@@ -164,40 +145,17 @@ end
 -- Wipe everything we still own (resource stop). Released cars are no longer
 -- in activeVehicles so they're never touched here.
 local function forceDelete(entity)
-    if not DoesEntityExist(entity) then return true end
-    DeleteEntity(entity)
-    return not DoesEntityExist(entity)
+    if DoesEntityExist(entity) then DeleteEntity(entity) end
 end
 
 local function despawnAll()
-    local deleted, failed = 0, 0
-    local survivors = {}
-
+    local count = 0
     for _, entry in ipairs(activeVehicles) do
-        if forceDelete(entry.entity) then
-            deleted = deleted + 1
-        else
-            survivors[#survivors + 1] = entry
-        end
+        forceDelete(entry.entity)
+        count = count + 1
     end
-
-    if #survivors > 0 then
-        Wait(50)
-        for _, entry in ipairs(survivors) do
-            if forceDelete(entry.entity) then
-                deleted = deleted + 1
-            else
-                failed = failed + 1
-                TM.Log.warn('citycars',
-                    ('shutdown: failed to delete %s (entity %d) - another resource may have taken ownership'):format(
-                        entry.model or '?', entry.entity))
-            end
-        end
-    end
-
     activeVehicles = {}
-    TM.Log.info('citycars',
-        ('shutdown: deleted ^2%d^7, failed ^1%d^7'):format(deleted, failed))
+    TM.Log.info('citycars', ('shutdown: deleted ^2%d^7'):format(count))
 end
 
 -- Generic "shuffled fresh first, then shuffled reused" pick order. Used for
@@ -312,7 +270,8 @@ local function sweepOrphans()
     local removed = 0
     for _, veh in ipairs(pool) do
         if Entity(veh).state.tm_streetside then
-            if forceDelete(veh) then removed = removed + 1 end
+            forceDelete(veh)
+            removed = removed + 1
         end
     end
     if removed > 0 then

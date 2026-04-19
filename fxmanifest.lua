@@ -4,7 +4,7 @@ game 'gta5'
 name 'tm-streetside'
 description 'Modular display + ambient city vehicles'
 author 'themannster'
-version '1.2.0'
+version '1.2.1'
 
 dependencies {
     'ox_lib',
